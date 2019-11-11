@@ -254,7 +254,8 @@ def minus(a: Point, b: Point) -> Point:
 
 
 def analyze(maze: ndarray) -> Analyzed:
-    if  len(maze.shape) != 2:
-        raise TypeError("dimension of input must be exactly 2.")
+    if maze == None or len(maze.shape) != 2:
+        raise TypeError("Input mazr must not be null and its dimension"
+                        "must be exactly 2.")
     start = find_start(maze)
     return flooding(start, maze)
