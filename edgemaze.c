@@ -10,12 +10,6 @@
         "include_dirs": [
             "C:\\programs\\miniconda\\lib\\site-packages\\numpy\\core\\include"
         ],
-        "libraries": [
-            "C:\\programs\\miniconda\\lib\\site-packages\\numpy\\core\\include"
-        ],
-        "library_dirs": [
-            "C:\\programs\\miniconda\\lib\\site-packages\\numpy\\core\\include"
-        ],
         "name": "edgemaze",
         "sources": [
             "edgemaze.pyx"
