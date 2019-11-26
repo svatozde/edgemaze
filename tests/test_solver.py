@@ -325,7 +325,7 @@ def test_swirl_shape():
 
 @pytest.mark.timeout(20)
 def test_large_maze_fast():
-    big = int(os.getenv('BIG_ENOUGH_NUMBER', '2500'))
+    big = int(os.getenv('BIG_ENOUGH_NUMBER', '2700'))
     for i in range(2):
         m = empty(big)
         m[0, 0] = 1
@@ -347,6 +347,6 @@ def test_large_maze_fast_path():
     assert a.distances[0, -1] == big - 1
     assert a.distances[-1, 0] == big - 1
     assert len(lot(a.path(big - 1, big - 1))) == big * 2 - 1
-    for i in range(50):
+    for i in range(25):
         lot(a.path(random.randrange(big), random.randrange(big)))
         print(i)
