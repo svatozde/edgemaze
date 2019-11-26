@@ -4,36 +4,6 @@
 #define __PYX_HAVE__edgemaze
 
 #include "Python.h"
-struct Point;
-typedef struct Point Point;
-struct DistancePoint;
-typedef struct DistancePoint DistancePoint;
-
-/* "edgemaze.pyx":58
- * 
- * 
- * ctypedef public struct Point:             # <<<<<<<<<<<<<<
- *     int x
- *     int y
- */
-struct Point {
-  int x;
-  int y;
-};
-
-/* "edgemaze.pyx":62
- *     int y
- * 
- * ctypedef public struct DistancePoint:             # <<<<<<<<<<<<<<
- *     int x
- *     int y
- */
-struct DistancePoint {
-  int x;
-  int y;
-  int distance;
-  Point prev;
-};
 
 #ifndef __PYX_HAVE_API__edgemaze
 
@@ -49,8 +19,8 @@ struct DistancePoint {
   #define DL_IMPORT(_T) _T
 #endif
 
-__PYX_EXTERN_C void set_distance(DistancePoint, __Pyx_memviewslice, int __pyx_skip_dispatch);
-__PYX_EXTERN_C void set_direction(DistancePoint, __Pyx_memviewslice, int __pyx_skip_dispatch);
+__PYX_EXTERN_C void set_distance(PyObject *, __Pyx_memviewslice);
+__PYX_EXTERN_C void set_direction(PyObject *, __Pyx_memviewslice);
 
 #endif /* !__PYX_HAVE_API__edgemaze */
 

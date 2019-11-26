@@ -1,10 +1,10 @@
-# cython: profile=False
+# cython: profile=True
 
 cimport numpy as np
 import numpy as np
 from numpy cimport ndarray
 from numpy import ndarray
-from typing import List
+from typing import List, Tuple
 import cython
 
 GO_LEFT_BIT = 1
@@ -30,69 +30,42 @@ cdef class PyAnalyzed:
         self.directions = directions
         self.is_reachable = is_reachable
 
+
+
     cpdef public list path(self, int row ,  int column):
         ret = []
-        cpdef Point point = Point(row, column)
-        cpdef Point p
+
+        cdef tuple p
         if self.directions[row,column] == b' ':
             raise ValueError(
                 "No target point is reachable from: [{},{}]"
-                    .format(point.x,point.y)
+                    .format(row,column)
                 )
 
+        cdef int px = row
+        cdef int py = column
         while True:
-            symbol = self.directions[point.x][point.y]
+            symbol = self.directions[px,py]
             if symbol == b' ':
                 return []
 
-            ret.append((point.x,point.y))
+            ret.append((px,py))
             p = SYMBOLS_TO_VECTORS[symbol]
-            point = Point(point.x - p.x, point.y - p.y)
+            px = px - p[0]
+            py = py - p[1]
 
             if symbol == b'X':
                 break
 
         return ret
 
+cdef tuple UP = (1, 0)
+cdef tuple DOWN = (-1, 0)
+cdef tuple LEFT = (0, -1)
+cdef tuple RIGHT = (0, 1)
+cdef tuple SELF = (0, 0)
 
-ctypedef public struct Point:
-    int x
-    int y
-
-ctypedef public struct DistancePoint:
-    int x
-    int y
-    int distance
-    Point prev
-
-
-cpdef public void set_distance(DistancePoint p, int[:,:] distances):
-    if distances[p.x][p.y] == -1:
-        distances[p.x][p.y] = p.distance
-        #print(distances[self.x][self.y])
-
-cpdef public void set_direction(DistancePoint dp, char[:,:] directions):
-    cpdef int x = dp.x - dp.prev.x
-    cpdef int y = dp.y - dp.prev.y
-    if  directions[dp.x][dp.y] == b' ':
-        if x == 1:
-             directions[dp.x][dp.y] = b'^'
-        elif x == -1:
-             directions[dp.x][dp.y] = b'v'
-        elif y == -1:
-             directions[dp.x][dp.y] = b'>'
-        elif y == 1:
-             directions[dp.x][dp.y] = b'<'
-        else:
-            directions[dp.x][dp.y] = b'X'
-
-cpdef Point UP = Point(1, 0)
-cpdef Point DOWN = Point(-1, 0)
-cpdef Point LEFT = Point(0, -1)
-cpdef Point RIGHT = Point(0, 1)
-cpdef Point SELF = Point(0, 0)
-
-cpdef list DIRECTIONS = [UP, DOWN, LEFT, RIGHT]
+cdef list DIRECTIONS = [UP, DOWN, LEFT, RIGHT]
 
 DOWNS_S = b'v'
 UP_S = b'^'
@@ -108,9 +81,6 @@ SYMBOLS_TO_VECTORS = {
     START_S: SELF
     }
 
-#cdef Point[:] neighbours = array.array('o',[UP, DOWN, LEFT, RIGHT])
-
-@cython.profile(False)
 cdef int is_nth_bit_set( int x, int n):
     return x & (1 << n)
 
@@ -135,19 +105,21 @@ cdef class Analyzed:
         self.directions = directions
         self.is_reachable = is_reachable
 
-
-
-
-@cython.profile(False)
-def flooding(start: List[SPoint], in_maze: ndarray) -> Analyzed:
+@cython.wraparound(False)
+@cython.cdivision(False)
+@cython.nonecheck(False)
+@cython.boundscheck(False)
+cdef Analyzed flooding(list start, ndarray in_maze):
     cdef int[:,:] maze = in_maze.astype(int)
     cdef list stack = [
-        DistancePoint(
-            s.x,
-            s.y,
-            0,
-            Point(s.x,s.y)
-            ) for s in start
+            (
+                s.x,
+                s.y,
+                0,
+                s.x,
+                s.y
+            )
+            for s in start
         ]
 
     arr =  ndarray((maze.shape[0],maze.shape[1]),dtype='int')
@@ -160,32 +132,59 @@ def flooding(start: List[SPoint], in_maze: ndarray) -> Analyzed:
 
 
     for p in stack:
-        set_distance(p, distances)
-        set_direction(p, directions)
+        distances[p[0],p[1]] = 0
+        directions[p[0],p[1]] = b'X'
 
-    cpdef DistancePoint new_point = DistancePoint(0,0,0,Point(0,0))
-    cpdef DistancePoint current = DistancePoint(0,0,0,Point(0,0))
-    cpdef Point direction
-    cpdef Point prev
+    cdef tuple n_pt = (0,0,0,0,0)
+    cdef tuple current = (0,0,0,0,0)
 
-    cpdef int max_x = maze.shape[0]
-    cpdef int max_y = maze.shape[1]
+    cdef int max_x = maze.shape[0]
+    cdef int max_y = maze.shape[1]
+
+    cdef int x
+    cdef int y
+
+    cdef tuple d
 
     while (stack):
         current = stack.pop(0)
-        for d in DIRECTIONS:
-            direction = d
-            if can_go(current,maze,distances,direction,max_x,max_y):
-                new_point=DistancePoint(
-                    current.x + direction.x,
-                    current.y + direction.y,
-                    current.distance + 1,
-                    Point(current.x, current.y)
+        for i in range(4):
+            d = DIRECTIONS[i]
+            if can_go(
+                    current[0],
+                    current[1],
+                    maze,
+                    distances,
+                    d[0],
+                    d[1],
+                    max_x,
+                    max_y
+                    ):
+
+                n_pt=(
+                    current[0] + d[0],
+                    current[1] + d[1],
+                    current[2] + 1,
+                    current[0],
+                    current[1]
                 )
 
-                set_distance(new_point, distances)
-                set_direction(new_point, directions)
-                stack.append(new_point)
+                distances[n_pt[0]][n_pt[1]] = n_pt[2]
+
+                x = n_pt[0] - n_pt[3]
+                y = n_pt[1] - n_pt[4]
+                if x == 1:
+                     directions[n_pt[0]][n_pt[1]] = b'^'
+                elif x == -1:
+                     directions[n_pt[0]][n_pt[1]] = b'v'
+                elif y == -1:
+                     directions[n_pt[0]][n_pt[1]] = b'>'
+                elif y == 1:
+                     directions[n_pt[0]][n_pt[1]] = b'<'
+                else:
+                    directions[n_pt[0],n_pt[1]] = b'X'
+
+                stack.append(n_pt)
 
     return Analyzed(
             distances,
@@ -199,44 +198,47 @@ def is_reachable(dist):
     d = dict(zip(unique, counts))
     return -1 not in d
 
-
-cdef int is_in_bounds(Point p , int[:,:] a):
-    return 0 <= p.x < a.shape[0] and 0 <= p.y < a.shape[1]
-
-@cython.profile(False)
-cdef int can_go(
-        DistancePoint p,
+@cython.wraparound(False)
+@cython.cdivision(False)
+@cython.nonecheck(False)
+@cython.boundscheck(False)
+cdef bint can_go(
+        int x,
+        int y,
         int[:,:]  maze,
         int[:,:]  distances,
-        Point direction,
+        int dx,
+        int dy,
         int max_x,
         int max_y
         ):
 
     #print("can go 1")
-    cdef Point to = Point(p.x + direction.x, p.y + direction.y)
+    cdef int tox = x + dx
+    cdef int toy = y + dy
 
-    if not (0 <= to.x < max_x and 0 <= to.y < max_y):
+    if not (0 <= tox < max_x and 0 <= toy < max_y):
         return False
 
     cdef int val = 0
-    if (direction.x == UP.x ) or (direction.y == RIGHT.y):
-        val = maze[to.x][to.y]
+    if (dx == 1 ) or (dy == 1):
+        val = maze[tox,toy]
     else:
-        val = maze[p.x,p.y]
+        val = maze[x,y]
 
-    if direction.x != 0:
+    if dx != 0:
         bit = GO_UP_BIT
     else:
         bit = GO_LEFT_BIT
 
-    cdef int wall = is_nth_bit_set(val, bit)
-    cdef int distance = distances[to.x][to.y]
-    return distance < 0 and not wall > 0
+    return distances[tox,toy] == -1 and not is_nth_bit_set(val, bit) > 0
 
-
-def get_from_np_array(p: Point, maze: ndarray):
-    return maze[p.x,p.y]
+cdef PyAnalyzed convert(Analyzed a):
+    return PyAnalyzed(
+        np.asarray(a.distances),
+        np.asarray(a.directions, dtype=np.object),
+        a.is_reachable
+        )
 
 def analyze(maze: ndarray) -> PyAnalyzed:
     if maze is None or maze.ndim != 2:
@@ -245,8 +247,4 @@ def analyze(maze: ndarray) -> PyAnalyzed:
     start = find_start(maze)
     a = flooding(start, maze)
 
-    return PyAnalyzed(
-        np.asarray(a.distances),
-        np.asarray(a.directions, dtype=np.object),
-        a.is_reachable
-        )
+    return convert(a)

@@ -325,8 +325,8 @@ def test_swirl_shape():
 
 @pytest.mark.timeout(20)
 def test_large_maze_fast():
-    big = int(os.getenv('BIG_ENOUGH_NUMBER', '2700'))
-    for i in range(2):
+    big = int(os.getenv('BIG_ENOUGH_NUMBER', '2048'))
+    for i in range(20):
         m = empty(big)
         m[0, 0] = 1
         m[-1, -1] = 1
